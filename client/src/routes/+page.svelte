@@ -23,6 +23,7 @@
 	let isSending = $state(false);
 	let errorMessage = $state('');
 	let conversationEnd = $state<HTMLDivElement>();
+	let conversationVersion = 0;
 
 	$effect(() => {
 		const messageCount = messages.length;
@@ -33,9 +34,11 @@
 	});
 
 	function startNewConversation() {
+		conversationVersion += 1;
 		messages = [];
 		errorMessage = '';
 		draft = '';
+		isSending = false;
 	}
 
 	function handleSubmit(event: SubmitEvent) {
@@ -53,6 +56,7 @@
 	async function sendMessage(suggestedMessage = draft) {
 		const content = suggestedMessage.trim();
 		if (!content || isSending) return;
+		const requestVersion = conversationVersion;
 
 		const history = messages.map(({ role, content: messageContent }) => ({
 			role,
@@ -70,6 +74,7 @@
 				body: JSON.stringify({ message: content, history })
 			});
 			const result = (await response.json()) as ChatResponse;
+			if (requestVersion !== conversationVersion) return;
 			if (!response.ok) throw new Error(result.error || 'Chưa gửi được câu hỏi. Vui lòng thử lại.');
 			if (!result.answer) throw new Error('Trợ lý trả về nội dung không hợp lệ.');
 
@@ -80,10 +85,11 @@
 				sources: result.sources ?? []
 			});
 		} catch (error) {
+			if (requestVersion !== conversationVersion) return;
 			errorMessage =
 				error instanceof Error ? error.message : 'Kết nối chưa ổn định. Vui lòng thử lại.';
 		} finally {
-			isSending = false;
+			if (requestVersion === conversationVersion) isSending = false;
 		}
 	}
 </script>

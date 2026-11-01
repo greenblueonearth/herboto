@@ -5,5 +5,14 @@ yarn.lock
 bun.lock
 bun.lockb
 
+# Generated files
+project.inlang/.lix/
+project.inlang/.meta.json
+project.inlang/README.md
+worker-configuration.d.ts
+
+# Documentation examples use Svelte diff-highlight markers.
+.github/skills/svelte-core-bestpractices/references/inspect.md
+
 # Miscellaneous
 /static/

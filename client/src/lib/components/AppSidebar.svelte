@@ -36,7 +36,7 @@
 		</a>
 	</div>
 
-	<button class="new-chat" onclick={startNewChat}>
+	<button class="new-chat" aria-label="Cuộc trò chuyện mới" onclick={startNewChat}>
 		<span aria-hidden="true">＋</span><span class="new-chat-label">Cuộc trò chuyện mới</span>
 	</button>
 
