@@ -16,17 +16,88 @@
 	};
 
 	type RemedyForm = Omit<Remedy, 'id' | 'created'>;
+	type LibraryType = 'thuoc_nam' | 'thuoc_bac' | 'thuoc_tay';
+	type LibraryConfig = {
+		collection: string;
+		label: string;
+		itemLabel: string;
+		eyebrow: string;
+		description: string;
+		countLabel: string;
+		categoryLabel: string;
+		categories: string[];
+		scientificNameLabel: string;
+		partsLabel: string;
+		benefitsLabel: string;
+		usageLabel: string;
+		precautionsLabel: string;
+		disclaimer: string;
+	};
 
-	const collectionName = 'thuoc_nam';
+	const libraryTypes: LibraryType[] = ['thuoc_nam', 'thuoc_bac', 'thuoc_tay'];
+	const libraries: Record<LibraryType, LibraryConfig> = {
+		thuoc_nam: {
+			collection: 'thuoc_nam',
+			label: 'Thuốc nam',
+			itemLabel: 'vị thuốc',
+			eyebrow: 'KHO TRI THỨC DÂN GIAN',
+			description: 'Ghi chép, chia sẻ và cùng nhau gìn giữ những cây thuốc quanh ta.',
+			countLabel: 'VỊ THUỐC',
+			categoryLabel: 'NHÓM CÂY',
+			categories: ['Tất cả', 'Cây thân thảo', 'Thân gỗ', 'Dây leo', 'Hoa và quả', 'Khác'],
+			scientificNameLabel: 'Tên khoa học',
+			partsLabel: 'Bộ phận sử dụng',
+			benefitsLabel: 'Công dụng dân gian',
+			usageLabel: 'Cách dùng',
+			precautionsLabel: 'Lưu ý an toàn',
+			disclaimer: 'Thông tin mang tính tham khảo dân gian, không thay thế tư vấn y tế chuyên môn.'
+		},
+		thuoc_bac: {
+			collection: 'thuoc_bac',
+			label: 'Thuốc bắc',
+			itemLabel: 'vị thuốc bắc',
+			eyebrow: 'DƯỢC LIỆU Y HỌC CỔ TRUYỀN',
+			description: 'Tra cứu và đóng góp ghi chép về vị thuốc, bài thuốc cổ truyền.',
+			countLabel: 'GHI CHÉP',
+			categoryLabel: 'NHÓM DƯỢC LIỆU',
+			categories: ['Tất cả', 'Vị thuốc', 'Bài thuốc', 'Dược liệu', 'Khác'],
+			scientificNameLabel: 'Tên khoa học / tên gọi khác',
+			partsLabel: 'Thành phần / bộ phận dùng',
+			benefitsLabel: 'Công dụng theo y học cổ truyền',
+			usageLabel: 'Cách dùng / cách chế biến',
+			precautionsLabel: 'Lưu ý và chống chỉ định',
+			disclaimer:
+				'Thông tin chỉ mang tính tham khảo, không thay thế chẩn đoán hoặc tư vấn của người hành nghề y tế.'
+		},
+		thuoc_tay: {
+			collection: 'thuoc_tay',
+			label: 'Thuốc tây',
+			itemLabel: 'thuốc tây',
+			eyebrow: 'THÔNG TIN DƯỢC PHẨM',
+			description: 'Lưu trữ thông tin thuốc, hoạt chất và lưu ý sử dụng để tiện tra cứu.',
+			countLabel: 'THUỐC',
+			categoryLabel: 'NHÓM THUỐC',
+			categories: ['Tất cả', 'Giảm đau', 'Kháng sinh', 'Tim mạch', 'Tiêu hóa', 'Hô hấp', 'Khác'],
+			scientificNameLabel: 'Tên biệt dược / tên khoa học',
+			partsLabel: 'Hoạt chất / dạng bào chế',
+			benefitsLabel: 'Chỉ định / công dụng',
+			usageLabel: 'Liều dùng / cách dùng theo nhãn',
+			precautionsLabel: 'Chống chỉ định / thận trọng',
+			disclaimer:
+				'Thông tin chỉ để tham khảo, không thay thế hướng dẫn của bác sĩ hoặc dược sĩ. Dùng thuốc theo chỉ định chuyên môn và nhãn thuốc.'
+		}
+	};
 	const pocketBaseUrl = import.meta.env.VITE_POCKETBASE_URL || '/pocketbase';
 	const pocketbase = new PocketBase(pocketBaseUrl);
-	const categories = ['Tất cả', 'Cây thân thảo', 'Thân gỗ', 'Dây leo', 'Hoa và quả', 'Khác'];
+	let selectedLibrary = $state<LibraryType>('thuoc_nam');
+	const library = $derived(libraries[selectedLibrary]);
+	const categories = $derived(library.categories);
 
 	function emptyForm(): RemedyForm {
 		return {
 			name: '',
 			scientific_name: '',
-			category: 'Cây thân thảo',
+			category: categories[1],
 			parts_used: '',
 			benefits: '',
 			usage: '',
@@ -50,7 +121,15 @@
 		remedies.filter((remedy) => {
 			const matchesCategory = activeCategory === 'Tất cả' || remedy.category === activeCategory;
 			const query = searchQuery.trim().toLocaleLowerCase('vi');
-			const searchable = [remedy.name, remedy.scientific_name, remedy.category, remedy.benefits]
+			const searchable = [
+				remedy.name,
+				remedy.scientific_name,
+				remedy.category,
+				remedy.parts_used,
+				remedy.benefits,
+				remedy.usage,
+				remedy.precautions
+			]
 				.join(' ')
 				.toLocaleLowerCase('vi');
 			return matchesCategory && (!query || searchable.includes(query));
@@ -69,8 +148,18 @@
 	);
 
 	$effect(() => {
-		void loadRemedies();
+		const requestedLibrary = selectedLibrary;
+		void loadRemedies(libraries[requestedLibrary].collection, requestedLibrary);
 	});
+
+	function switchLibrary(type: LibraryType) {
+		if (selectedLibrary === type) return;
+		selectedLibrary = type;
+		activeCategory = 'Tất cả';
+		searchQuery = '';
+		remedies = [];
+		errorMessage = '';
+	}
 
 	function getResponseStatus(error: unknown) {
 		if (typeof error === 'object' && error !== null && 'status' in error) {
@@ -79,24 +168,30 @@
 		return 0;
 	}
 
-	async function loadRemedies() {
+	async function loadRemedies(
+		collectionName = library.collection,
+		requestedLibrary = selectedLibrary
+	) {
 		isLoading = true;
 		errorMessage = '';
 		try {
-			remedies = await pocketbase
+			const records = await pocketbase
 				.collection(collectionName)
 				.getFullList<Remedy>({ sort: '-updated' });
+			if (selectedLibrary === requestedLibrary) remedies = records;
 		} catch (error) {
-			console.error('Không thể tải thư viện thuốc nam:', error);
+			console.error(`Không thể tải thư viện ${libraries[requestedLibrary].label}:`, error);
 			const status = getResponseStatus(error);
-			errorMessage =
-				status === 403
-					? 'PocketBase từ chối đọc collection thuoc_nam. Hãy kiểm tra list rule.'
-					: status === 404
-						? 'Không tìm thấy collection thuoc_nam. Hãy chạy ./init-pocketbase.sh.'
-						: 'Không truy cập được PocketBase. Hãy kiểm tra máy chủ và URL mà trình duyệt có thể truy cập.';
+			if (selectedLibrary === requestedLibrary) {
+				errorMessage =
+					status === 403
+						? `PocketBase từ chối đọc collection ${collectionName}. Hãy kiểm tra list rule.`
+						: status === 404
+							? `Không tìm thấy collection ${collectionName}. Hãy chạy ./init-pocketbase.sh.`
+							: 'Không truy cập được PocketBase. Hãy kiểm tra máy chủ và URL mà trình duyệt có thể truy cập.';
+			}
 		} finally {
-			isLoading = false;
+			if (selectedLibrary === requestedLibrary) isLoading = false;
 		}
 	}
 
@@ -135,14 +230,14 @@
 		errorMessage = '';
 		try {
 			if (editingRemedy) {
-				await pocketbase.collection(collectionName).update(editingRemedy.id, form);
+				await pocketbase.collection(library.collection).update(editingRemedy.id, form);
 			} else {
-				await pocketbase.collection(collectionName).create(form);
+				await pocketbase.collection(library.collection).create(form);
 			}
 			dialogElement.close();
 			await loadRemedies();
 		} catch (error) {
-			console.error('Không thể lưu vị thuốc:', error);
+			console.error(`Không thể lưu ${library.itemLabel}:`, error);
 			formError = 'Lưu chưa thành công. Vui lòng kiểm tra quyền ghi của collection PocketBase.';
 		} finally {
 			isSaving = false;
@@ -152,11 +247,11 @@
 	async function deleteRemedy(remedy: Remedy) {
 		if (!window.confirm(`Xóa “${remedy.name}” khỏi thư viện?`)) return;
 		try {
-			await pocketbase.collection(collectionName).delete(remedy.id);
+			await pocketbase.collection(library.collection).delete(remedy.id);
 			remedies = remedies.filter((item) => item.id !== remedy.id);
 			errorMessage = '';
 		} catch (error) {
-			console.error('Không thể xóa vị thuốc:', error);
+			console.error(`Không thể xóa ${library.itemLabel}:`, error);
 			errorMessage = 'Xóa chưa thành công. Vui lòng kiểm tra quyền xóa của collection PocketBase.';
 		}
 	}
@@ -171,8 +266,8 @@
 </script>
 
 <svelte:head>
-	<title>Thư viện thuốc nam</title>
-	<meta name="description" content="Thư viện cây thuốc nam được cộng đồng ghi chép và quản lý." />
+	<title>{library.label} | Herboto</title>
+	<meta name="description" content={library.description} />
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
 	<link
@@ -186,21 +281,39 @@
 
 	<main class="main-content">
 		<header class="topbar">
-			<div class="breadcrumb">Không gian cộng đồng <span>/</span> <strong>Thư viện</strong></div>
+			<div class="breadcrumb">
+				Không gian cộng đồng <span>/</span> <strong>{library.label}</strong>
+			</div>
 			<div class="connection"><span class="connection-dot"></span> PocketBase</div>
 		</header>
 
 		<section class="page-content">
 			<div class="intro-row">
 				<div>
-					<div class="eyebrow">KHO TRI THỨC DÂN GIAN <span></span> {remedies.length} VỊ THUỐC</div>
-					<h1>Thư viện thuốc nam</h1>
-					<p class="intro-copy">Ghi chép, chia sẻ và cùng nhau gìn giữ những cây thuốc quanh ta.</p>
+					<div class="eyebrow">
+						{library.eyebrow} <span></span>
+						{remedies.length}
+						{library.countLabel}
+					</div>
+					<h1>Thư viện {library.label.toLocaleLowerCase('vi')}</h1>
+					<p class="intro-copy">{library.description}</p>
 				</div>
 				<button class="primary-button" onclick={openCreateDialog}>
-					<span aria-hidden="true">＋</span> Thêm vị thuốc
+					<span aria-hidden="true">＋</span> Thêm {library.itemLabel}
 				</button>
 			</div>
+
+			<nav class="library-tabs" aria-label="Chọn thư viện">
+				{#each libraryTypes as type (type)}
+					<button
+						class:chosen={selectedLibrary === type}
+						aria-pressed={selectedLibrary === type}
+						onclick={() => switchLibrary(type)}
+					>
+						{libraries[type].label}
+					</button>
+				{/each}
+			</nav>
 
 			{#if errorMessage}
 				<div class="alert" role="alert">
@@ -219,8 +332,11 @@
 			</div>
 
 			<div class="library-layout">
-				<aside class="filters" aria-label="Lọc theo nhóm cây">
-					<div class="filter-title">NHÓM CÂY</div>
+				<aside
+					class="filters"
+					aria-label={`Lọc theo ${library.categoryLabel.toLocaleLowerCase('vi')}`}
+				>
+					<div class="filter-title">{library.categoryLabel}</div>
 					{#each categories as category (category)}
 						<button
 							class:chosen={activeCategory === category}
@@ -237,25 +353,29 @@
 					</div>
 				</aside>
 
-				<section class="results" aria-label="Danh sách vị thuốc">
+				<section class="results" aria-label={`Danh sách ${library.itemLabel}`}>
 					{#if isLoading}
 						<div class="empty-state">
 							<span class="loading-mark"></span>
-							<p>Đang mở tủ thuốc...</p>
+							<p>Đang tải thư viện...</p>
 						</div>
 					{:else if visibleRemedies.length === 0}
 						<div class="empty-state">
 							<span class="empty-mark" aria-hidden="true">✳</span>
 							<h2>
-								{remedies.length ? 'Chưa tìm thấy vị thuốc phù hợp' : 'Trang đầu tiên đang chờ bạn'}
+								{remedies.length
+									? `Chưa tìm thấy ${library.itemLabel} phù hợp`
+									: `Chưa có ghi chép trong thư viện ${library.label.toLocaleLowerCase('vi')}`}
 							</h2>
 							<p>
 								{remedies.length
-									? 'Thử đổi từ khóa hoặc chọn một nhóm cây khác.'
+									? 'Thử đổi từ khóa hoặc chọn một nhóm khác.'
 									: 'Thêm một ghi chép để bắt đầu xây dựng thư viện.'}
 							</p>
 							{#if !remedies.length}
-								<button class="primary-button" onclick={openCreateDialog}>＋ Thêm vị thuốc</button>
+								<button class="primary-button" onclick={openCreateDialog}
+									>＋ Thêm {library.itemLabel}</button
+								>
 							{/if}
 						</div>
 					{:else}
@@ -284,7 +404,9 @@
 									{/if}
 									<p class="benefits">{remedy.benefits}</p>
 									{#if remedy.parts_used}
-										<div class="parts-used"><span>BỘ PHẬN DÙNG</span>{remedy.parts_used}</div>
+										<div class="parts-used">
+											<span>{library.partsLabel.toLocaleUpperCase('vi')}</span>{remedy.parts_used}
+										</div>
 									{/if}
 									<div class="card-footer">
 										<span>{remedy.author ? `Ghi bởi ${remedy.author}` : 'Ghi chép cộng đồng'}</span>
@@ -305,7 +427,7 @@
 		<div class="dialog-heading">
 			<div>
 				<div class="eyebrow">GHI CHÉP CỘNG ĐỒNG</div>
-				<h2>{editingRemedy ? 'Cập nhật vị thuốc' : 'Thêm vị thuốc mới'}</h2>
+				<h2>{editingRemedy ? `Cập nhật ${library.itemLabel}` : `Thêm ${library.itemLabel} mới`}</h2>
 			</div>
 			<button
 				class="close-button"
@@ -317,11 +439,11 @@
 
 		<div class="form-grid">
 			<label class="wide-field"
-				>Tên vị thuốc *
-				<input bind:value={form.name} required maxlength="120" placeholder="Ví dụ: Tía tô" />
+				>Tên {library.itemLabel} *
+				<input bind:value={form.name} required maxlength="120" placeholder={library.itemLabel} />
 			</label>
 			<label
-				>Tên khoa học
+				>{library.scientificNameLabel}
 				<input
 					bind:value={form.scientific_name}
 					maxlength="160"
@@ -337,24 +459,24 @@
 				</select>
 			</label>
 			<label
-				>Bộ phận sử dụng
-				<input bind:value={form.parts_used} maxlength="200" placeholder="Lá, thân, rễ..." />
+				>{library.partsLabel}
+				<input bind:value={form.parts_used} maxlength="200" placeholder={library.partsLabel} />
 			</label>
 			<label
 				>Người ghi chép
 				<input bind:value={form.author} maxlength="100" placeholder="Tên của bạn" />
 			</label>
 			<label class="wide-field"
-				>Công dụng dân gian *
+				>{library.benefitsLabel} *
 				<textarea
 					bind:value={form.benefits}
 					required
 					maxlength="2000"
 					rows="3"
-					placeholder="Mô tả kinh nghiệm sử dụng dân gian..."></textarea>
+					placeholder={library.benefitsLabel}></textarea>
 			</label>
 			<label class="wide-field"
-				>Cách dùng
+				>{library.usageLabel}
 				<textarea
 					bind:value={form.usage}
 					maxlength="2000"
@@ -362,7 +484,7 @@
 					placeholder="Cách sơ chế, liều lượng theo kinh nghiệm..."></textarea>
 			</label>
 			<label class="wide-field"
-				>Lưu ý an toàn
+				>{library.precautionsLabel}
 				<textarea
 					bind:value={form.precautions}
 					maxlength="2000"
@@ -371,9 +493,7 @@
 			</label>
 		</div>
 
-		<p class="form-disclaimer">
-			Thông tin mang tính tham khảo dân gian, không thay thế tư vấn y tế chuyên môn.
-		</p>
+		<p class="form-disclaimer">{library.disclaimer}</p>
 		{#if formError}<p class="form-error" role="alert">{formError}</p>{/if}
 		<div class="form-actions">
 			<button class="secondary-button" type="button" onclick={() => dialogElement.close()}
@@ -493,6 +613,33 @@
 		color: #788178;
 		margin: 0;
 		font-size: 14px;
+	}
+	.library-tabs {
+		display: flex;
+		width: fit-content;
+		max-width: 100%;
+		gap: 3px;
+		padding: 4px;
+		margin: 0 0 24px;
+		border: 1px solid #e4e4db;
+		border-radius: 5px;
+		background: #eeefe8;
+	}
+	.library-tabs button {
+		min-height: 34px;
+		padding: 0 13px;
+		border: 0;
+		border-radius: 3px;
+		background: transparent;
+		color: #69746a;
+		font-size: 12px;
+		font-weight: 600;
+		cursor: pointer;
+	}
+	.library-tabs button.chosen {
+		background: #fff;
+		color: #304739;
+		box-shadow: 0 1px 3px rgb(34 49 37 / 0.1);
 	}
 	.primary-button {
 		display: inline-flex;
@@ -933,7 +1080,7 @@
 			grid-template-columns: 1fr;
 		}
 	}
-	@media (max-width: 700px) {
+	@media (max-width: 760px) {
 		.library-shell {
 			display: block;
 		}

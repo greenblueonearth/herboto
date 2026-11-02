@@ -7,7 +7,7 @@
 1. Khởi tạo database và schema: `./init-pocketbase.sh`. Lệnh áp dụng các migration trong `pb_migrations/` và an toàn để chạy lại.
 2. Khởi động PocketBase từ thư mục gốc: `./pocketbase serve --http=0.0.0.0:8090`.
 3. Mở trang quản trị PocketBase tại `http://127.0.0.1:8090/_/`.
-4. Migration tạo collection `thuoc_nam` với các field:
+4. Các migration tạo ba collection `thuoc_nam`, `thuoc_bac` và `thuoc_tay` với cùng schema:
 
 | Field             | Kiểu | Yêu cầu        |
 | ----------------- | ---- | -------------- |
@@ -32,4 +32,6 @@
 
 Endpoint `/api/chat` lấy tối đa 200 bản ghi, xếp hạng theo độ khớp từ khóa và gửi tối đa 4 ghi chép liên quan làm context cho OpenRouter. Câu hỏi được giới hạn 1.200 ký tự và câu trả lời tối đa 700 token. Vì endpoint dùng key server-side nhưng có thể được gọi công khai, cần thêm xác thực hoặc rate limit trước khi triển khai rộng để tránh lạm dụng chi phí.
 
-Nhóm cây trong form: `Cây thân thảo`, `Thân gỗ`, `Dây leo`, `Hoa và quả`, `Khác`. Ứng dụng không lưu dữ liệu vào local storage. Nội dung công dụng là kinh nghiệm dân gian, không thay thế tư vấn y tế.
+Trang `/thuvien` có thể chuyển giữa ba collection. Nhóm mặc định trong form lần lượt là nhóm cây thuốc nam, `Vị thuốc`/`Bài thuốc`/`Dược liệu` cho thuốc bắc và `Giảm đau`/`Kháng sinh`/`Tim mạch`/`Tiêu hóa`/`Hô hấp` cho thuốc tây; mỗi thư viện còn có nhóm `Khác`. Ứng dụng không lưu dữ liệu vào local storage. Nội dung là thông tin tham khảo, không thay thế tư vấn y tế; liều dùng thuốc tây phải theo chỉ định chuyên môn và nhãn thuốc.
+
+Trợ lý AI tại `/api/chat` hiện chỉ truy xuất collection `thuoc_nam`; hai thư viện mới được quản lý trực tiếp tại trang `/thuvien`.

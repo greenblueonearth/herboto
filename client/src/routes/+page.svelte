@@ -76,12 +76,13 @@
 			const result = (await response.json()) as ChatResponse;
 			if (requestVersion !== conversationVersion) return;
 			if (!response.ok) throw new Error(result.error || 'Chưa gửi được câu hỏi. Vui lòng thử lại.');
-			if (!result.answer) throw new Error('Trợ lý trả về nội dung không hợp lệ.');
+			const answer = result.answer?.trim();
+			if (!answer) throw new Error('Trợ lý trả về nội dung không hợp lệ.');
 
 			messages.push({
 				id: crypto.randomUUID(),
 				role: 'assistant',
-				content: result.answer,
+				content: answer,
 				sources: result.sources ?? []
 			});
 		} catch (error) {
@@ -232,7 +233,8 @@
 	}
 	.chat-main {
 		min-width: 0;
-		min-height: 100vh;
+		height: 100vh;
+		height: 100dvh;
 		display: flex;
 		flex-direction: column;
 	}
@@ -266,7 +268,7 @@
 	.conversation {
 		width: 100%;
 		flex: 1;
-		min-height: 280px;
+		min-height: 0;
 		display: flex;
 		justify-content: center;
 		padding: 28px 32px 20px;
@@ -559,10 +561,16 @@
 	}
 	@media (max-width: 760px) {
 		.chat-shell {
-			display: block;
+			display: grid;
+			grid-template-columns: minmax(0, 1fr);
+			grid-template-rows: auto minmax(0, 1fr);
+			height: 100vh;
+			height: 100dvh;
+			min-height: 0;
 		}
 		.chat-main {
-			min-height: 100dvh;
+			height: auto;
+			min-height: 0;
 		}
 		.topbar {
 			height: 55px;
